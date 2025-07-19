@@ -1,0 +1,102 @@
+#docker ps
+#docker rm -f django_app postgres_db
+docker build -t monprojet-django .
+docker-compose up --build
+docker exec -it django_app python manage.py migrate
+
+http://localhost:8000/
+
+
+
+################################################################
+python3 -m venv .env
+source .env/bin/activate
+pip install --upgrade pip
+pip install django==5.2.4
+python -m django --version
+
+
+Création dockerfile, requirements etc pour avoir 
+debian 12.11
+python 3.13.3
+django 5.2.4
+puis comment lancer gérer et supprimer 
+
+term1:
+docker build -t monprojet-django .
+#docker run -p 8000:8000 monprojet-django
+docker run -it monprojet-django /bin/bash
+
+term2:
+#docker rm -f postgres_db django_app
+docker-compose up --build
+
+term3:
+# Appliquer les migrations
+docker ps # remplacer django_app par le nom NAMES
+docker exec -it django_app python manage.py migrate
+# Créer un superutilisateur (optionnel)
+docker exec -it django_app python manage.py createsuperuser
+
+
+#################################################################
+
+
+🛠️ Aide-mémoire Django – Site vitrine finance
+✅ 1. Créer un nouveau projet Django
+bash
+django-admin startproject vitrine_finance
+cd vitrine_finance
+✅ 2. Créer l’app principale
+bash
+python3 manage.py startapp core
+✅ 3. Enregistrer l’app dans le projet
+Ouvre vitrine_finance/settings.py, et ajoute 'core' dans INSTALLED_APPS :
+
+python
+INSTALLED_APPS = [
+    ...,
+    'core',
+]
+✅ 4. Ajouter les routes
+Dans vitrine_finance/urls.py, ajoute :
+
+python
+from django.urls import path, include
+
+urlpatterns = [
+    path('', include('core.urls')),
+]
+Et dans core/urls.py (à créer) :
+
+python
+from django.urls import path
+from . import views
+
+urlpatterns = [
+    path('', views.home, name='home'),
+    path('services/', views.services, name='services'),
+    path('contact/', views.contact, name='contact'),
+]
+✅ 5. Créer les vues et les templates
+Dans core/views.py et core/templates/core/, créer :
+
+home.html
+
+services.html
+
+contact.html
+
+base.html (layout commun)
+
+Et éventuellement core/forms.py pour un formulaire de contact.
+
+✅ 6. Appliquer les migrations
+bash
+python3 manage.py migrate
+✅ 7. Lancer le serveur
+bash
+python3 manage.py runserver
+✅ 8. Accéder au site
+Dans ton navigateur :
+👉 http://127.0.0.1:8000
