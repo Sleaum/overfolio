@@ -4,8 +4,6 @@ docker build -t monprojet-django .
 docker-compose up --build
 #docker exec -it django_app python manage.py migrate
 docker-compose exec web python manage.py startapp blog
-
-
 http://localhost:8000/
 
 
@@ -16,32 +14,8 @@ source .env/bin/activate
 pip install --upgrade pip
 pip install django==5.2.4
 python -m django --version
+################################################################
 
-
-Création dockerfile, requirements etc pour avoir 
-debian 12.11
-python 3.13.3
-django 5.2.4
-puis comment lancer gérer et supprimer 
-
-term1:
-docker build -t monprojet-django .
-#docker run -p 8000:8000 monprojet-django
-docker run -it monprojet-django /bin/bash
-
-term2:
-#docker rm -f postgres_db django_app
-docker-compose up --build
-
-term3:
-# Appliquer les migrations
-docker ps # remplacer django_app par le nom NAMES
-docker exec -it django_app python manage.py migrate
-# Créer un superutilisateur (optionnel)
-docker exec -it django_app python manage.py createsuperuser
-
-
-#################################################################
 
 
 🛠️ Aide-mémoire Django – Site vitrine finance
