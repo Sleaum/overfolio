@@ -7,7 +7,7 @@ docker-compose exec web python manage.py startapp blog
 http://localhost:8000/
 
 
-
+03842e1bdbc9614bcf5debdf5f749866e1bdc183
 ################################################################
 python3 -m venv .env
 source .env/bin/activate

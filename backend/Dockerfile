@@ -43,7 +43,8 @@ RUN ln -s /usr/bin/python3 /usr/bin/python
 #    ln -s /usr/local/bin/pip3.12 /usr/local/bin/pip
 
 # Créer un dossier pour le code
-WORKDIR /app
+#WORKDIR /app
+WORKDIR /
 
 # Copier les fichiers
 COPY requirements.txt .
@@ -51,7 +52,8 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --break-system-packages -r requirements.txt
 
 # Copier le code Django (à adapter selon ta structure)
-COPY ./app /app
+#COPY ./app /app
+COPY ./ /
 
 # Port par défaut de Django
 #EXPOSE 8000

@@ -12,5 +12,5 @@ def index(request):
                "nasdaq_time":ny_now.strftime("%H:%M:%S"), 
                "euronext_time":paris_now.strftime("%H:%M:%S")
     }
-    return render(request, "monsite/index.html", context)
+    return render(request, "overfolio/index.html", context)
 

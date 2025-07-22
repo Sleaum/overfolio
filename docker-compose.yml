@@ -2,13 +2,9 @@
 
 services:
   web:
-    build: .
-#      context: .
-#      dockerfile: Dockerfile
+    build: ./backend
     container_name: django_app
     command: python manage.py runserver 0.0.0.0:8000
-    #command: python manage.py migrate
-    #command: python manage.py runserver
     volumes:
       - ./app:/app
     ports:
