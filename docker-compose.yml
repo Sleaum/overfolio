@@ -1,0 +1,47 @@
+version: "3.9"
+
+services:
+  backend:
+    build: ./backend
+    container_name: backend
+    env_file: .env
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - db
+    ports:
+      - "8000:8000"
+    command: gunicorn overfolio.wsgi:application --bind 0.0.0.0:8000
+
+  frontend:
+    build: ./frontend
+    container_name: frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+
+  db:
+    image: postgres:15
+    container_name: db
+    restart: always
+    env_file: .env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  nginx:
+    image: nginx:alpine
+    container_name: nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+      - frontend-dist:/usr/share/nginx/html
+    depends_on:
+      - backend
+      - frontend
+
+volumes:
+  postgres_data:
+  frontend-dist:
+
