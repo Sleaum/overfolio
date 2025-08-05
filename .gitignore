@@ -1,0 +1,22 @@
+# Python/Django
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+env/
+venv/
+*.sqlite3
+*.log
+db.sqlite3
+
+# Node/Vue
+node_modules/
+dist/
+npm-debug.log
+yarn-error.log
+
+# IDEs
+.vscode/
+.idea/
+.DS_Store
+
