@@ -15,7 +15,7 @@ const todayData = ref([])
 
 const fetchData = async () => {
   try {
-    const res = await fetch('http://localhost:8000/api/googlesheet/?doc_name=overfolio')
+    const res = await fetch('/api/googlesheet/?doc_name=overfolio')
     if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`)
     const json = await res.json()
     todayData.value = json.today || []
