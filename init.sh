@@ -4,7 +4,7 @@ echo "🧹 Nettoyage des anciens containers, volumes orphelins..."
 docker-compose down --volumes --remove-orphans
 
 echo "🏗️ Build des images..."
-docker-compose build
+docker-compose build --no-cache
 
 echo "🚀 Lancement des services..."
 docker-compose up -d
