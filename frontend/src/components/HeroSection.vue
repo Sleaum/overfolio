@@ -76,6 +76,9 @@
         <p>
           Tu comprends d’un coup d’œil ce qui est important, sans jamais changer tes habitudes.
         </p>
+        <p>
+        Du googlesheet visualise l’ensemble de tes actifs avec des graphiques spécifiques et beaux, afin d’avoir une vision précise de ton portfolio total et ainsi prendre des décisions éclairées de la répartition
+        </p>
       </div>
 
     </div>

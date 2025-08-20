@@ -4,6 +4,7 @@ import { createApp } from 'vue'
 import App from './App.vue'
 import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
+import router from './router'
 
 import {
   CanvasRenderer
@@ -29,5 +30,6 @@ use([
 
 const app = createApp(App)
 app.component('v-chart', VChart)
+app.use(router)
 app.mount('#app')
 

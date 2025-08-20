@@ -21,5 +21,6 @@ from django.views.generic import RedirectView
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('api.urls')),
+    path('api/stripe/', include('payments.urls')),
     path('', RedirectView.as_view(url='/api/googlesheet', permanent=False)),
 ]
