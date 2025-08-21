@@ -1,14 +1,15 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import GoogleSheet from '@/views/GoogleSheet.vue'
+import HeroSection from '../components/HeroSection.vue'
+import NewPage from '../components/NewPage.vue'
 
 const routes = [
-  { path: '/', redirect: '/googlesheet' },
-  { path: '/googlesheet', name: 'GoogleSheet', component: GoogleSheet }
+  { path: '/', name: 'Home', component: HeroSection },
+  { path: '/newpage', name: 'NewPage', component: NewPage },
 ]
 
 const router = createRouter({
   history: createWebHistory(),
-  routes
+  routes,
 })
 
 export default router
