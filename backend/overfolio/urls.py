@@ -4,7 +4,8 @@ from django.urls import path, include
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/', include('api.urls')),
+    #path('api/', include('api.urls')),
     path('api/stripe/', include('payments.urls')),
+    path('api/sheet', include('googlesheet.urls')),
     #path('', RedirectView.as_view(url='/api/googlesheet', permanent=False)),
 ]
