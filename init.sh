@@ -1,6 +1,9 @@
 #!/bin/bash
 set -e
 
+echo "🧹 Suppression d'éventuels conteneurs résiduels..."
+docker rm -f nginx frontend backend db 2>/dev/null || true
+
 echo "🧹 Nettoyage des anciens containers, volumes orphelins..."
 docker-compose down --volumes --remove-orphans
 
