@@ -15,7 +15,7 @@ from pathlib import Path
 from overfolio.services import initialize_gspread
 from dotenv import load_dotenv
 from decouple import config
-import dj_database_url
+##import dj_database_url
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -88,23 +88,26 @@ REST_FRAMEWORK = {
 WSGI_APPLICATION = 'overfolio.wsgi.application'
 
 
-# Database
-# https://docs.djangoproject.com/en/5.2/ref/settings/#databases
-
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv('POSTGRES_DB', 'overfolio'),
-        'USER': os.getenv('POSTGRES_USER', 'user'),
-        'PASSWORD': os.getenv('POSTGRES_PASSWORD', 'pwd'),
-        'HOST': 'db',  # très important ici : le nom du service Docker
-        'PORT': '5432',
+        'NAME': os.environ.get('POSTGRES_DB', 'overfolio'),
+        'USER': os.environ.get('POSTGRES_USER', 'postgres'),
+        'PASSWORD': os.environ.get('POSTGRES_PASSWORD', 'password'),
+        'HOST': os.environ.get('DB_HOST', 'db'),
+        'PORT': os.environ.get('DB_PORT', '5432'),
     }
 }
-
-
-# Password validation
-# https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
+#DATABASES = {
+#    'default': {
+#        'ENGINE': 'django.db.backends.postgresql',
+#        'NAME': os.getenv('POSTGRES_DB', 'overfolio'),
+#        'USER': os.getenv('POSTGRES_USER', 'user'),
+#        'PASSWORD': os.getenv('POSTGRES_PASSWORD', 'pwd'),
+#        'HOST': 'db',  # très important ici : le nom du service Docker
+#        'PORT': '5432',
+#    }
+#}
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -170,16 +173,21 @@ USE_I18N = True
 USE_TZ = True
 
 
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.2/howto/static-files/
+STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
-STATIC_URL = 'static/'
-
-# Default primary key field type
-# https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
+# Optionnel : dossiers statiques supplémentaires
+STATICFILES_DIRS = [
+    BASE_DIR / 'static',
+] if (BASE_DIR / 'static').exists() else []
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 load_dotenv()
-GSPREAD_CLIENT = initialize_gspread() #Starting the gspread client
+try:
+    GSPREAD_CLIENT = initialize_gspread()
+except Exception as e:
+    print(f"Warning: Could not initialize Google Sheets client: {e}")
+    GSPREAD_CLIENT = None
+
 
