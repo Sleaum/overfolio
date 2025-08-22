@@ -18,16 +18,28 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 
-const props = defineProps({
-  data: {
-    type: Array,
-    required: true
+// état local
+const data = ref([])
+
+// headers calculés automatiquement
+const headers = computed(() =>
+  data.value.length ? Object.keys(data.value[0]) : []
+)
+
+// récupération des données au montage
+onMounted(async () => {
+  try {
+    const response = await fetch('http://localhost/api/sheet?doc_name=overfolio')
+    if (!response.ok) {
+      throw new Error('Erreur lors de la récupération des données')
+    }
+    const json = await response.json()
+    data.value = json
+  } catch (error) {
+    console.error(error)
   }
 })
-
-// Génère dynamiquement les en-têtes de colonnes à partir des clés du premier objet
-const headers = computed(() => (props.data.length ? Object.keys(props.data[0]) : []))
 </script>
 

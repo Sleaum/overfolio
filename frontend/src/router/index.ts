@@ -6,7 +6,7 @@ import SheetPage from '../components/SheetPage.vue'
 const routes = [
   { path: '/', name: 'Home', component: HeroSection },
   { path: '/newpage', name: 'NewPage', component: NewPage },
-  { path: '/api/sheet', name: 'SheetPage', component: SheetPage },
+  { path: '/sheet', name: 'SheetPage', component: SheetPage },
 ]
 
 const router = createRouter({

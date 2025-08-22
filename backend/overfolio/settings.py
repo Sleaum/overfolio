@@ -7,12 +7,15 @@ from decouple import config
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
+load_dotenv()
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'django-insecure-ae)mt582mhtd2dv(#$2a#_+%y-i+fz$3l)n+nln5rd0r%t85lf'
+#SECRET_KEY = os.getenv('SECRET_KEY')
+
+# Vérification de sécurité
+if not SECRET_KEY:
+    raise ValueError("SECRET_KEY not found in environment variables")
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -170,11 +173,29 @@ STATICFILES_DIRS = [
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-load_dotenv()
+
+
+
+# settings.py
+print("🔍 Starting Google Sheets client initialization...")
+
 try:
+    from googlesheet.services import initialize_gspread  # <-- Import correct
+    print("🔍 Imported initialize_gspread successfully")
+
     GSPREAD_CLIENT = initialize_gspread()
+    print(f"🔍 GSPREAD_CLIENT created: {type(GSPREAD_CLIENT)}")
+    print("✅ Google Sheets client initialized successfully")
+
 except Exception as e:
-    print(f"Warning: Could not initialize Google Sheets client: {e}")
+    print(f"🚨 Exception during initialization: {e}")
+    print(f"🚨 Exception type: {type(e)}")
+    print(f"🚨 Exception repr: {repr(e)}")
     GSPREAD_CLIENT = None
+#try:
+#    GSPREAD_CLIENT = initialize_gspread()
+#except Exception as e:
+#    print(f"Warning: Could not initialize Google Sheets client: {e}")
+#    GSPREAD_CLIENT = None
 
 
