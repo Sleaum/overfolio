@@ -28,7 +28,7 @@
       </div>
     </div>
     
-    <!-- Graphique -->
+    <!-- Graphique Rose -->
     <div v-else-if="sheetData.length > 0" class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
       <div class="mb-4 text-center">
         <h3 class="text-lg font-semibold text-gray-900">{{ title }}</h3>
@@ -42,23 +42,58 @@
         @click="onChartClick"
       />
       
-      <!-- Légende personnalisée (optionnelle) -->
-      <div v-if="showCustomLegend" class="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+      <!-- Statistiques résumées -->
+      <div class="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div class="text-center p-3 bg-gray-50 rounded-lg">
+          <div class="text-2xl font-bold text-blue-600">{{ aggregateDataByActif.length }}</div>
+          <div class="text-sm text-gray-600">Types d'actifs</div>
+        </div>
+        <div class="text-center p-3 bg-gray-50 rounded-lg">
+          <div class="text-2xl font-bold text-green-600">
+            {{ new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(totalValue) }}€
+          </div>
+          <div class="text-sm text-gray-600">Valeur totale</div>
+        </div>
+        <div class="text-center p-3 bg-gray-50 rounded-lg">
+          <div class="text-2xl font-bold text-purple-600">{{ topAsset.name }}</div>
+          <div class="text-sm text-gray-600">Plus gros actif</div>
+        </div>
+        <div class="text-center p-3 bg-gray-50 rounded-lg">
+          <div class="text-2xl font-bold text-orange-600">
+            {{ Math.round(topAsset.percentage) }}%
+          </div>
+          <div class="text-sm text-gray-600">Part principale</div>
+        </div>
+      </div>
+      
+      <!-- Légende détaillée -->
+      <div class="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         <div 
           v-for="(item, index) in legendData" 
           :key="index"
-          class="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+          class="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border hover:shadow-md transition-shadow cursor-pointer"
+          @click="highlightSector(item.name)"
         >
           <div class="flex items-center">
             <div 
-              class="w-4 h-4 rounded-full mr-3 flex-shrink-0"
+              class="w-5 h-5 rounded-full mr-3 flex-shrink-0 shadow-sm"
               :style="{ backgroundColor: getColor(index) }"
             ></div>
-            <span class="font-medium text-gray-900">{{ item.name }}</span>
+            <div>
+              <div class="font-medium text-gray-900">{{ item.name }}</div>
+              <div class="text-sm text-gray-600">
+                {{ Math.round((item.value / totalValue) * 100) }}% du total
+              </div>
+            </div>
           </div>
-          <span class="text-sm font-semibold text-gray-700">
-            {{ new Intl.NumberFormat('fr-FR').format(item.value) }}€
-          </span>
+          <div class="text-right">
+            <div class="text-lg font-semibold text-gray-900">
+              {{ new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(item.value) }}€
+            </div>
+            <div class="text-sm text-gray-500">
+              {{ getAssetTypeLabel(item.name) }}
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -101,11 +136,11 @@ const props = defineProps({
   },
   title: {
     type: String,
-    default: 'Répartition des données'
+    default: 'Répartition des actifs en rose'
   },
   subtitle: {
     type: String,
-    default: ''
+    default: 'Visualisation en pétales selon la valeur'
   },
   chartWidth: {
     type: String,
@@ -113,36 +148,33 @@ const props = defineProps({
   },
   chartHeight: {
     type: String,
-    default: '400px'
+    default: '500px'
   },
-  padAngle: {
-    type: Number,
-    default: 0.02 // Espace entre les secteurs
-  },
-  showCustomLegend: {
-    type: Boolean,
-    default: false
+  roseType: {
+    type: String,
+    default: 'radius', // 'radius' ou 'area'
+    validator: (value) => ['radius', 'area'].includes(value)
   },
   labelField: {
     type: String,
-    default: 'Actif' // Champ pour les labels (crypto, fiat, stock, etc.)
+    default: 'Actif'
   },
   valueField: {
     type: String,
-    default: 'Equity' // Champ pour les valeurs
+    default: 'Equity'
   },
   colors: {
     type: Array,
     default: () => [
-      '#5470c6', '#91cc75', '#fac858', '#ee6666', 
-      '#73c0de', '#3ba272', '#fc8452', '#9a60b4', 
-      '#ea7ccc', '#8d4653', '#d48265', '#61a0a8'
+      '#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', 
+      '#feca57', '#ff9ff3', '#54a0ff', '#5f27cd',
+      '#00d2d3', '#ff9f43', '#10ac84', '#ee5a24'
     ]
   }
 })
 
 // Émissions
-const emit = defineEmits(['chart-click', 'data-loaded'])
+const emit = defineEmits(['chart-click', 'data-loaded', 'sector-highlight'])
 
 // Utilisation du composable
 const { sheetData, loading, error, getSheetData } = useSheet()
@@ -157,15 +189,6 @@ const loadData = async () => {
   }
 }
 
-// Données formatées pour la légende avec agrégation par Actif
-const legendData = computed(() => {
-  const aggregatedData = aggregateDataByActif.value
-  return aggregatedData.map(item => ({
-    name: item.name,
-    value: item.value
-  }))
-})
-
 // Agrégation des données par type d'actif
 const aggregateDataByActif = computed(() => {
   const grouped = {}
@@ -174,7 +197,6 @@ const aggregateDataByActif = computed(() => {
     const actif = item[props.labelField] || 'Autre'
     const assets = Number(item[props.valueField]) || 0
     
-    // Ignorer les valeurs négatives et nulles pour le pie chart
     if (assets > 0) {
       if (!grouped[actif]) {
         grouped[actif] = 0
@@ -185,7 +207,32 @@ const aggregateDataByActif = computed(() => {
   
   return Object.entries(grouped)
     .map(([name, value]) => ({ name, value }))
-    .sort((a, b) => b.value - a.value) // Trier par valeur décroissante
+    .sort((a, b) => b.value - a.value)
+})
+
+// Données formatées pour la légende
+const legendData = computed(() => {
+  return aggregateDataByActif.value.map(item => ({
+    name: item.name,
+    value: item.value
+  }))
+})
+
+// Valeur totale
+const totalValue = computed(() => {
+  return aggregateDataByActif.value.reduce((sum, item) => sum + item.value, 0)
+})
+
+// Plus gros actif
+const topAsset = computed(() => {
+  if (aggregateDataByActif.value.length === 0) {
+    return { name: '-', percentage: 0 }
+  }
+  const top = aggregateDataByActif.value[0]
+  return {
+    name: top.name,
+    percentage: (top.value / totalValue.value) * 100
+  }
 })
 
 // Fonction pour obtenir la couleur d'un index
@@ -193,50 +240,57 @@ const getColor = (index) => {
   return props.colors[index % props.colors.length]
 }
 
+// Labels pour les types d'actifs
+const getAssetTypeLabel = (actif) => {
+  const labels = {
+    'crypto': 'Cryptomonnaies',
+    'fiat': 'Liquidités',
+    'stock': 'Actions',
+    'immobilier': 'Immobilier',
+    'commodity': 'Matières premières'
+  }
+  return labels[actif] || actif
+}
+
 // Gestion du clic sur le graphique
 const onChartClick = (params) => {
   emit('chart-click', params)
 }
 
-// Configuration du graphique pie
+// Fonction pour mettre en évidence un secteur
+const highlightSector = (sectorName) => {
+  emit('sector-highlight', sectorName)
+}
+
+// Configuration du graphique rose
 const chartOption = computed(() => {
   const data = aggregateDataByActif.value.map((item, index) => ({
     name: item.name,
     value: item.value,
     itemStyle: {
-      color: getColor(index)
+      color: getColor(index),
+      borderRadius: 3,
+      borderColor: '#fff',
+      borderWidth: 1
     }
   }))
 
-  // Calculer le total pour les pourcentages
-  const total = data.reduce((sum, item) => sum + item.value, 0)
-
   return {
-    title: {
-      text: props.title,
-      left: 'center',
-      top: '5%',
-      textStyle: {
-        fontSize: 16,
-        fontWeight: 'bold',
-        color: '#1f2937'
-      }
-    },
     tooltip: {
       trigger: 'item',
       formatter: function(params) {
         const percent = params.percent
         const value = params.value
         const name = params.name
-        // Format des nombres avec séparateurs de milliers
         const formattedValue = new Intl.NumberFormat('fr-FR').format(value)
         return `
-          <div class="font-semibold">${name}</div>
-          <div class="text-sm">
-            <span class="inline-block w-3 h-3 rounded-full mr-1" style="background-color: ${params.color}"></span>
-            Valeur: <span class="font-medium">${formattedValue} €</span>
+          <div class="font-semibold text-lg mb-2">${getAssetTypeLabel(name)}</div>
+          <div class="text-sm mb-1">
+            <span class="inline-block w-3 h-3 rounded-full mr-2" style="background-color: ${params.color}"></span>
+            Valeur: <span class="font-bold">${formattedValue} €</span>
           </div>
-          <div class="text-sm">Pourcentage: <span class="font-medium">${percent}%</span></div>
+          <div class="text-sm mb-1">Part: <span class="font-bold">${percent}%</span></div>
+          <div class="text-xs text-gray-500">Cliquez pour plus de détails</div>
         `
       },
       backgroundColor: 'rgba(255, 255, 255, 0.95)',
@@ -244,34 +298,18 @@ const chartOption = computed(() => {
       borderWidth: 1,
       textStyle: {
         color: '#374151'
-      }
+      },
+      extraCssText: 'border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);'
     },
     legend: {
-      show: !props.showCustomLegend,
-      type: 'scroll',
-      orient: 'horizontal',
-      left: 'center',
-      bottom: '5%',
-      itemWidth: 14,
-      itemHeight: 14,
-      textStyle: {
-        fontSize: 12,
-        color: '#6b7280'
-      },
-      formatter: function(name) {
-        const item = data.find(d => d.name === name)
-        const formattedValue = new Intl.NumberFormat('fr-FR', { 
-          maximumFractionDigits: 0 
-        }).format(item ? item.value : 0)
-        return `${name} (${formattedValue}€)`
-      }
+      show: false // On utilise notre légende personnalisée
     },
     series: [
       {
         type: 'pie',
-        radius: ['40%', '70%'], // Donut chart
+        radius: ['30%', '75%'],
         center: ['50%', '50%'],
-        padAngle: props.padAngle,
+        roseType: props.roseType, // 'radius' ou 'area'
         itemStyle: {
           borderRadius: 5,
           borderColor: '#fff',
@@ -281,35 +319,35 @@ const chartOption = computed(() => {
           show: true,
           position: 'outside',
           formatter: function(params) {
-            const formattedValue = new Intl.NumberFormat('fr-FR', { 
-              maximumFractionDigits: 0 
-            }).format(params.value)
-            return `${params.name}\n${params.percent}%\n(${formattedValue}€)`
+            if (params.percent < 5) return '' // Masquer les labels des petits secteurs
+            return `${params.name}\n${params.percent}%`
           },
-          fontSize: 11,
-          color: '#4b5563'
+          fontSize: 12,
+          fontWeight: 'bold',
+          color: '#374151'
         },
         labelLine: {
           show: true,
-          length: 15,
+          length: 20,
           length2: 10,
           smooth: true
         },
         emphasis: {
           itemStyle: {
-            shadowBlur: 10,
+            shadowBlur: 20,
             shadowOffsetX: 0,
-            shadowColor: 'rgba(0, 0, 0, 0.5)'
+            shadowColor: 'rgba(0, 0, 0, 0.3)',
+            scale: 1.1
           },
           label: {
-            fontSize: 14,
+            fontSize: 16,
             fontWeight: 'bold'
           }
         },
         animationType: 'scale',
         animationEasing: 'elasticOut',
         animationDelay: function (idx) {
-          return Math.random() * 200
+          return idx * 100
         },
         data: data
       }
@@ -327,6 +365,8 @@ defineExpose({
   loadData,
   sheetData,
   legendData,
-  aggregateDataByActif
+  aggregateDataByActif,
+  totalValue,
+  topAsset
 })
 </script>
