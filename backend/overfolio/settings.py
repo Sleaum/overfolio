@@ -10,8 +10,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv()
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-ae)mt582mhtd2dv(#$2a#_+%y-i+fz$3l)n+nln5rd0r%t85lf'
-#SECRET_KEY = os.getenv('SECRET_KEY')
+#SECRET_KEY = 'django-insecure-ae)mt582mhtd2dv(#$2a#_+%y-i+fz$3l)n+nln5rd0r%t85lf'
+SECRET_KEY = os.getenv('SECRET_KEY')
 
 # Vérification de sécurité
 if not SECRET_KEY:
