@@ -33,13 +33,13 @@ services:
     depends_on:
       - frontend
 
-  db:
-    image: postgres:15
-    container_name: db
-    restart: always
-    env_file: .env
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
+  #db:
+  #  image: postgres:15
+  #  container_name: db
+  #  restart: always
+  #  env_file: .env
+  #  volumes:
+  #    - postgres_data:/var/lib/postgresql/data
 
 volumes:
   postgres_data:
