@@ -1,7 +1,10 @@
- // composables/useSheet.js
+// composables/useSheet.js
 import { ref } from 'vue'
 
- // Extrait le message d'erreur renvoyé par le backend ({ "error": "..." })
+// Onglet lu par défaut dans le Google Sheet (modifiable avec VITE_SHEET_NAME)
+const DEFAULT_SHEET_NAME = import.meta.env.VITE_SHEET_NAME || 'portfolio'
+
+// Extrait le message d'erreur renvoyé par le backend ({ "error": "..." })
 async function readErrorMessage(response) {
   try {
     const body = await response.json()
@@ -14,7 +17,7 @@ async function readErrorMessage(response) {
   return `Erreur HTTP ${response.status}${statusText}`
 }
 
- // Composable pour les appels API génériques
+// Composable pour les appels API génériques
 function useApi() {
   const loading = ref(false)
   const error = ref(null)
@@ -60,11 +63,11 @@ export function useSheet() {
   const { loading, error, fetchData } = useApi()
   const sheetData = ref([])
 
-  // getSheetData('overfolio')
+  // getSheetData('overfolio')                       -> onglet par défaut (portfolio)
   // getSheetData('overfolio', { sheetName: 'Janvier', refresh: true })
   const getSheetData = async (docName, { sheetName = '', refresh = false } = {}) => {
     const params = new URLSearchParams({ doc_name: docName })
-    if (sheetName) params.set('sheet_name', sheetName)
+    params.set('sheet_name', sheetName || DEFAULT_SHEET_NAME)
     if (refresh) params.set('refresh', '1')
 
     const data = await fetchData(`/api/sheet?${params}`)
