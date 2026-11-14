@@ -1,6 +1,5 @@
 import os
 from pathlib import Path
-from overfolio.services import initialize_gspread
 from dotenv import load_dotenv
 from decouple import config
 
@@ -174,30 +173,3 @@ STATICFILES_DIRS = [
 ] if (BASE_DIR / 'static').exists() else []
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
-
-
-
-# settings.py
-print("🔍 Starting Google Sheets client initialization...")
-
-try:
-    from googlesheet.services import initialize_gspread  # <-- Import correct
-    print("🔍 Imported initialize_gspread successfully")
-
-    GSPREAD_CLIENT = initialize_gspread()
-    print(f"🔍 GSPREAD_CLIENT created: {type(GSPREAD_CLIENT)}")
-    print("✅ Google Sheets client initialized successfully")
-
-except Exception as e:
-    print(f"🚨 Exception during initialization: {e}")
-    print(f"🚨 Exception type: {type(e)}")
-    print(f"🚨 Exception repr: {repr(e)}")
-    GSPREAD_CLIENT = None
-#try:
-#    GSPREAD_CLIENT = initialize_gspread()
-#except Exception as e:
-#    print(f"Warning: Could not initialize Google Sheets client: {e}")
-#    GSPREAD_CLIENT = None
-
-

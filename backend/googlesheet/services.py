@@ -1,198 +1,150 @@
+import logging
 import os
+import re
+from typing import Any, List, Optional
+
 import gspread
-from typing import List
-from django.conf import settings
- 
-def initialize_gspread() -> gspread.client.Client:
-    """
-    Initialize a gspread client with the given credentials.
-    """
-    print("🔍 initialize_gspread() called")
+from requests.exceptions import RequestException
 
-    try:
-        print("🔍 Getting credentials...")
-        credentials = get_credentials()
-        print(f"🔍 Credentials type: {type(credentials)}")
+logger = logging.getLogger(__name__)
 
-        # Vérifier les champs requis
-        required_fields = ['type', 'project_id', 'private_key', 'client_email']
-        missing_fields = [field for field in required_fields if not credentials.get(field)]
+# Client gspread créé à la première requête (et non au démarrage de Django),
+# puis réutilisé. Si l'initialisation échoue, elle est retentée à la requête suivante.
+_client: Optional[gspread.client.Client] = None
 
-        if missing_fields:
-            print(f"🚨 Missing credential fields: {missing_fields}")
-            raise ValueError(f"Missing required credential fields: {missing_fields}")
+_REQUIRED_FIELDS = ("type", "project_id", "private_key", "client_email")
+_NUMBER_RE = re.compile(r"^-?(0|[1-9]\d*)(\.\d+)?$")
 
-        print("🔍 Creating gspread client...")
-        client = gspread.service_account_from_dict(credentials)
-        print(f"🔍 Client created: {type(client)}")
 
-        return client
+class SheetError(Exception):
+    """Erreur lisible par l'utilisateur, avec le code HTTP à renvoyer."""
+    status = 500
 
-    except Exception as e:
-        print(f"🚨 Exception in initialize_gspread: {e}")
-        print(f"🚨 Exception type: {type(e)}")
 
-        # Vérifier si c'est un objet Response
-        if hasattr(e, 'status_code'):
-            print(f"🚨 FOUND IT! initialize_gspread exception has status_code: {e.status_code}")
+class SheetConfigError(SheetError):
+    status = 500
 
-        raise
-#def initialize_gspread() -> gspread.client.Client:
-#  """
-#  Initialize a gspread client with the given credentials.
-#  """
-#  return gspread.service_account_from_dict(get_credentials())  # Note: we could move this to settings to do this once.
- 
+
+class SheetNotFound(SheetError):
+    status = 404
+
+
+class SheetAPIError(SheetError):
+    status = 502
+
+
 def get_credentials() -> dict:
-  """
-  Return gspread credentials.
-  """
-  return {
-          "type": os.getenv("TYPE"),
-          "project_id": os.getenv("PROJECT_ID"),
-          "private_key_id": os.getenv("PRIVATE_KEY_ID"),
-          "private_key": os.getenv("PRIVATE_KEY"),
-          "client_email": os.getenv("CLIENT_EMAIL"),
-          "client_id": os.getenv("CLIENT_ID"),
-          "auth_uri": os.getenv("AUTH_URI"),
-          "token_uri": os.getenv("TOKEN_URI"),
-          "auth_provider_x509_cert_url": os.getenv("AUTH_PROVIDER_X509_CERT_URL"),
-          "client_x509_cert_url": os.getenv("CLIENT_X509_CERT_URL"),
-          "universe_domain": os.getenv("UNIVERSE_DOMAIN")
-  }
+    """Identifiants du compte de service, lus dans les variables d'environnement."""
+    private_key = os.getenv("PRIVATE_KEY") or ""
+    # Selon l'outil qui a chargé le .env, les "\n" peuvent rester littéraux.
+    private_key = private_key.replace("\\n", "\n")
+    return {
+        "type": os.getenv("TYPE"),
+        "project_id": os.getenv("PROJECT_ID"),
+        "private_key_id": os.getenv("PRIVATE_KEY_ID"),
+        "private_key": private_key,
+        "client_email": os.getenv("CLIENT_EMAIL"),
+        "client_id": os.getenv("CLIENT_ID"),
+        "auth_uri": os.getenv("AUTH_URI"),
+        "token_uri": os.getenv("TOKEN_URI"),
+        "auth_provider_x509_cert_url": os.getenv("AUTH_PROVIDER_X509_CERT_URL"),
+        "client_x509_cert_url": os.getenv("CLIENT_X509_CERT_URL"),
+        "universe_domain": os.getenv("UNIVERSE_DOMAIN"),
+    }
 
 
-def get_all_rows(doc_name: str, sheet_name: str = None) -> List[dict]:
-    """
-    Fetches all rows from a given Google Sheet worksheet.
-    """
-    print(f"🔍 get_all_rows called with doc_name={doc_name}, sheet_name={sheet_name}")
-    
+def get_client() -> gspread.client.Client:
+    global _client
+    if _client is not None:
+        return _client
+
+    credentials = get_credentials()
+    missing = [f for f in _REQUIRED_FIELDS if not credentials.get(f)]
+    if missing:
+        raise SheetConfigError(
+            "Identifiants Google incomplets, variables manquantes : "
+            + ", ".join(f.upper() for f in missing)
+        )
     try:
-        # Vérifier que le client est initialisé
-        print("🔍 Step 1: Checking GSPREAD_CLIENT...")
-        if not hasattr(settings, 'GSPREAD_CLIENT'):
-            print("🚨 settings has no GSPREAD_CLIENT attribute")
-            raise ValueError("GSPREAD_CLIENT attribute not found")
-        
-        if settings.GSPREAD_CLIENT is None:
-            print("🚨 GSPREAD_CLIENT is None")
-            raise ValueError("GSPREAD_CLIENT is None")
-        
-        print(f"🔍 GSPREAD_CLIENT type: {type(settings.GSPREAD_CLIENT)}")
-        
-        # Ouvrir le document Google Sheets
-        print("🔍 Step 2: Opening document...")
-        try:
-            sh = settings.GSPREAD_CLIENT.open(doc_name)
-            print(f"🔍 Document opened successfully: {type(sh)}")
-        except Exception as e:
-            print(f"🚨 Error opening document: {e}")
-            print(f"🚨 Error type: {type(e)}")
-            raise
-        
-        # Sélectionner la worksheet
-        print("🔍 Step 3: Selecting worksheet...")
-        try:
-            if sheet_name:
-                print(f"🔍 Getting worksheet by name: {sheet_name}")
-                worksheet = sh.worksheet(sheet_name)
-            else:
-                print("🔍 Getting first worksheet (index 0)")
-                worksheet = sh.get_worksheet(0)
-            print(f"🔍 Worksheet selected: {type(worksheet)}")
-        except Exception as e:
-            print(f"🚨 Error selecting worksheet: {e}")
-            print(f"🚨 Error type: {type(e)}")
-            raise
-        
-        # Récupérer toutes les données
-        print("🔍 Step 4: Getting all records...")
-        try:
-            records = worksheet.get_all_records()
-            print(f"🔍 Records retrieved successfully")
-            print(f"🔍 Records type: {type(records)}")
-            print(f"🔍 Records length: {len(records) if isinstance(records, (list, tuple)) else 'Not a list/tuple'}")
-            
-            # Vérifier si records est vraiment une liste
-            if isinstance(records, list):
-                print(f"🔍 First record preview: {records[0] if records else 'Empty list'}")
-            else:
-                print(f"🚨 WARNING: records is not a list! Content: {str(records)[:100]}")
-            
-            return records
-            
-        except Exception as e:
-            print(f"🚨 Error getting records: {e}")
-            print(f"🚨 Error type: {type(e)}")
-            raise
-        
-    except gspread.SpreadsheetNotFound as e:
-        print(f"🚨 SpreadsheetNotFound: {e}")
-        raise ValueError(f"Google Sheet '{doc_name}' not found or not accessible")
-    except gspread.WorksheetNotFound as e:
-        print(f"🚨 WorksheetNotFound: {e}")
-        raise ValueError(f"Worksheet '{sheet_name}' not found in '{doc_name}'")
-    except gspread.exceptions.APIError as e:
-        print(f"🚨 APIError: {e}")
-        raise ValueError(f"Google Sheets API error: {str(e)}")
-    except Exception as e:
-        print(f"🚨 Generic Exception in get_all_rows: {e}")
-        print(f"🚨 Exception type: {type(e)}")
-        print(f"🚨 Exception repr: {repr(e)}")
-        
-        # Vérifier si l'exception elle-même est un objet Response
-        if hasattr(e, 'status_code'):
-            print(f"🚨 FOUND IT! Exception has status_code: {e.status_code}")
-        
-        raise ValueError(f"Failed to access Google Sheet: {str(e)}")
+        _client = gspread.service_account_from_dict(credentials)
+    except Exception as exc:  # clé PEM illisible, etc.
+        logger.exception("Initialisation du client Google Sheets impossible")
+        raise SheetConfigError(f"Identifiants Google invalides : {exc}") from exc
+    return _client
 
 
-
-  #def get_all_rows(doc_name: str, sheet_name: str = None) -> List[dict]:
-  #  """
-  #  Fetches all rows from a given Google Sheet worksheet.
-  #  """
-  #  sh = settings.GSPREAD_CLIENT.open(doc_name)
-  #  worksheet = sh.worksheet[sheet_name] if sheet_name else sh.get_worksheet(0)
-  #  return worksheet.get_all_records()
-
-#def get_all_rows(doc_name: str, sheet_name: str = None) -> List[dict]:
-#    """
-#    Fetches all rows from a given Google Sheet worksheet.
-#    """
-#    try:
-#        # Vérifier que le client est initialisé
-#        if not hasattr(settings, 'GSPREAD_CLIENT') or settings.GSPREAD_CLIENT is None:
-#            raise ValueError("GSPREAD_CLIENT not initialized in settings")
-#        
-#        # Ouvrir le document Google Sheets
-#        sh = settings.GSPREAD_CLIENT.open(doc_name)
-#        
-#        # CORRECTION CRITIQUE: Utiliser () au lieu de []
-#        worksheet = sh.worksheet(sheet_name) if sheet_name else sh.get_worksheet(0)
-#        
-#        # Récupérer toutes les données
-#        return worksheet.get_all_records()
-#        
-#    except gspread.SpreadsheetNotFound:
-#        raise ValueError(f"Google Sheet '{doc_name}' not found or not accessible")
-#    except gspread.WorksheetNotFound:
-#        raise ValueError(f"Worksheet '{sheet_name}' not found in '{doc_name}'")
-#    except gspread.exceptions.APIError as e:
-#        raise ValueError(f"Google Sheets API error: {str(e)}")
-#    except Exception as e:
-#        raise ValueError(f"Failed to access Google Sheet: {str(e)}")
+def initialize_gspread() -> gspread.client.Client:
+    """Conservé pour compatibilité avec l'ancien settings.py."""
+    return get_client()
 
 
+def _convert(value: Any) -> Any:
+    """'12' -> 12, '12.5' -> 12.5. Le reste reste du texte (dates, '007', '1,5 €')."""
+    if isinstance(value, str):
+        value = value.strip()
+        if _NUMBER_RE.match(value):
+            return float(value) if "." in value else int(value)
+    return value
 
 
+def rows_from_values(values: List[List[Any]]) -> List[dict]:
+    """
+    Transforme la grille brute d'une feuille (liste de listes) en liste de dictionnaires.
+
+    Contrairement à worksheet.get_all_records(), cette version ne plante pas quand
+    l'en-tête contient des colonnes vides ou des doublons, ignore les lignes vides
+    et tolère les lignes plus courtes que l'en-tête.
+    """
+    if not values:
+        return []
+
+    columns = []  # (index dans la ligne, nom de colonne)
+    seen: dict = {}
+    for index, header in enumerate(values[0]):
+        name = str(header).strip()
+        if not name:
+            continue
+        seen[name] = seen.get(name, 0) + 1
+        if seen[name] > 1:
+            name = f"{name} ({seen[name]})"
+        columns.append((index, name))
+
+    rows = []
+    for raw in values[1:]:
+        if not any(str(cell).strip() for cell in raw):
+            continue
+        rows.append(
+            {
+                name: _convert(raw[index]) if index < len(raw) else ""
+                for index, name in columns
+            }
+        )
+    return rows
 
 
+def get_all_rows(doc_name: str, sheet_name: Optional[str] = None) -> List[dict]:
+    """Lit un onglet d'un Google Sheet (par défaut le premier) et renvoie ses lignes."""
+    client = get_client()
+    try:
+        spreadsheet = client.open(doc_name)
+        worksheet = (
+            spreadsheet.worksheet(sheet_name) if sheet_name else spreadsheet.get_worksheet(0)
+        )
+        if worksheet is None:
+            raise SheetNotFound(f"Le document '{doc_name}' ne contient aucun onglet.")
+        values = worksheet.get_all_values()
+    except gspread.exceptions.SpreadsheetNotFound:
+        email = os.getenv("CLIENT_EMAIL", "le compte de service")
+        raise SheetNotFound(
+            f"Feuille '{doc_name}' introuvable. Vérifie le nom et partage-la avec {email}."
+        )
+    except gspread.exceptions.WorksheetNotFound:
+        raise SheetNotFound(f"Onglet '{sheet_name}' introuvable dans '{doc_name}'.")
+    except gspread.exceptions.APIError as exc:
+        logger.warning("Erreur API Google Sheets : %s", exc)
+        raise SheetAPIError(f"Erreur de l'API Google Sheets : {exc}")
+    except RequestException as exc:
+        logger.warning("Google Sheets injoignable : %s", exc)
+        raise SheetAPIError(f"Google Sheets est injoignable : {exc}")
 
-
-
-
-
-
-
+    return rows_from_values(values)

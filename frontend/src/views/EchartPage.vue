@@ -1,8 +1,5 @@
 <template>
-    <VueEChartsComponent 
-      doc-name="overfolio" 
-      api-url="http://localhost:8000/api/sheet" 
-    />
+    <VueEChartsComponent doc-name="overfolio" />
     <PieChartComponent
       doc-name="overfolio"
       title="Répartition du portefeuille par type d'actif"
@@ -27,4 +24,6 @@
 import VueEChartsComponent from '../components/VueEChartsComponent.vue'
 import PieChartComponent from '../components/PiePadangleComponent.vue'
 import RoseChartComponent from '../components/PieRose.vue'
+
+const handleAssetClick = (params) => console.log('Actif sélectionné :', params)
 </script>
