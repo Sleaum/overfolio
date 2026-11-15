@@ -7,5 +7,6 @@ urlpatterns = [
     #path('api/', include('api.urls')),
     path('api/stripe/', include('payments.urls')),
     path('api/sheet', include('googlesheet.urls')),
+    path('api/data/', include('googlesheet.data_urls')),
     #path('', RedirectView.as_view(url='/api/googlesheet', permanent=False)),
 ]

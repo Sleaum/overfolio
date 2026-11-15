@@ -5,6 +5,7 @@
       <nav class="space-x-4">
         <router-link to="/board" class="text-gray-600 hover:text-black">Board</router-link>
         <router-link to="/echart" class="text-gray-600 hover:text-black">Echart</router-link>
+        <router-link to="/source" class="text-gray-600 hover:text-black">Source</router-link>
         <router-link to="/sheet" class="text-gray-600 hover:text-black">GoogleSheet</router-link>
         <router-link to="/newpage" class="text-gray-600 hover:text-black">Connexion</router-link>
         <SubscriptionButton />

@@ -1,7 +1,7 @@
 import logging
 import os
 import re
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Tuple
 
 import gspread
 from requests.exceptions import RequestException
@@ -87,20 +87,51 @@ def _convert(value: Any) -> Any:
     return value
 
 
-def rows_from_values(values: List[List[Any]]) -> List[dict]:
+def _is_number(value: Any) -> bool:
+    if isinstance(value, bool):
+        return False
+    if isinstance(value, (int, float)):
+        return True
+    return bool(_NUMBER_RE.match(str(value).strip()))
+
+
+def detect_header_index(values: List[List[Any]], max_scan: int = 10) -> int:
     """
-    Transforme la grille brute d'une feuille (liste de listes) en liste de dictionnaires.
+    Repère la ligne d'en-tête : la première des 10 premières lignes qui contient au moins
+    3 cellules remplies, toutes textuelles. Une ligne de synthèse placée au-dessus de
+    l'en-tête (avec des totaux ou des dates) est ainsi ignorée. Repli : première ligne.
+    """
+    for index, row in enumerate(values[:max_scan]):
+        cells = [cell for cell in row if str(cell).strip()]
+        if len(cells) >= 3 and not any(_is_number(cell) for cell in cells):
+            return index
+    return 0
+
+
+def parse_values(
+    values: List[List[Any]], header_row: Optional[int] = None
+) -> Tuple[int, List[str], List[dict]]:
+    """
+    Transforme la grille brute d'une feuille (liste de listes) en lignes (dictionnaires).
+
+    header_row : numéro (à partir de 1) de la ligne d'en-tête ; détecté automatiquement si absent.
+
+    Renvoie (numéro de la ligne d'en-tête, noms des colonnes dans l'ordre, lignes).
 
     Contrairement à worksheet.get_all_records(), cette version ne plante pas quand
     l'en-tête contient des colonnes vides ou des doublons, ignore les lignes vides
     et tolère les lignes plus courtes que l'en-tête.
     """
     if not values:
-        return []
+        return (header_row or 1), [], []
+
+    header_index = (header_row - 1) if header_row else detect_header_index(values)
+    if header_index >= len(values):
+        return header_index + 1, [], []
 
     columns = []  # (index dans la ligne, nom de colonne)
     seen: dict = {}
-    for index, header in enumerate(values[0]):
+    for index, header in enumerate(values[header_index]):
         name = str(header).strip()
         if not name:
             continue
@@ -110,7 +141,7 @@ def rows_from_values(values: List[List[Any]]) -> List[dict]:
         columns.append((index, name))
 
     rows = []
-    for raw in values[1:]:
+    for raw in values[header_index + 1:]:
         if not any(str(cell).strip() for cell in raw):
             continue
         rows.append(
@@ -119,27 +150,46 @@ def rows_from_values(values: List[List[Any]]) -> List[dict]:
                 for index, name in columns
             }
         )
-    return rows
+    return header_index + 1, [name for _, name in columns], rows
 
 
-def get_all_rows(doc_name: str, sheet_name: Optional[str] = None) -> List[dict]:
-    """Lit un onglet d'un Google Sheet (par défaut le premier) et renvoie ses lignes."""
-    client = get_client()
+def rows_from_values(values: List[List[Any]], header_row: Optional[int] = None) -> List[dict]:
+    """Comme parse_values, mais ne renvoie que les lignes."""
+    return parse_values(values, header_row)[2]
+
+
+def _read_values(worksheet) -> List[List[Any]]:
+    """
+    Valeurs brutes (nombres réels, indépendants de la langue de la feuille : pas de
+    "1 234,50" ni de symbole monétaire), avec les dates en texte comme affichées.
+    """
     try:
-        spreadsheet = client.open(doc_name)
-        worksheet = (
-            spreadsheet.worksheet(sheet_name) if sheet_name else spreadsheet.get_worksheet(0)
+        return worksheet.get_all_values(
+            value_render_option="UNFORMATTED_VALUE",
+            date_time_render_option="FORMATTED_STRING",
         )
-        if worksheet is None:
-            raise SheetNotFound(f"Le document '{doc_name}' ne contient aucun onglet.")
-        values = worksheet.get_all_values()
+    except TypeError:  # très ancienne version de gspread
+        return worksheet.get_all_values()
+
+
+def open_spreadsheet(doc_name: str):
+    """
+    Ouvre le document Google Sheets.
+
+    Si GOOGLE_SHEET_ID est défini, il est ouvert par son identifiant (partie de l'URL
+    entre /d/ et /edit) : pas de recherche par nom, donc pas besoin de l'API Drive.
+    Sinon il est recherché par son nom (doc_name).
+    """
+    client = get_client()
+    sheet_id = os.getenv("GOOGLE_SHEET_ID", "").strip()
+    try:
+        return client.open_by_key(sheet_id) if sheet_id else client.open(doc_name)
     except gspread.exceptions.SpreadsheetNotFound:
         email = os.getenv("CLIENT_EMAIL", "le compte de service")
+        what = "GOOGLE_SHEET_ID" if sheet_id else f"le nom '{doc_name}'"
         raise SheetNotFound(
-            f"Feuille '{doc_name}' introuvable. Vérifie le nom et partage-la avec {email}."
+            f"Feuille introuvable (vérifie {what}) ou non partagée avec {email}."
         )
-    except gspread.exceptions.WorksheetNotFound:
-        raise SheetNotFound(f"Onglet '{sheet_name}' introuvable dans '{doc_name}'.")
     except gspread.exceptions.APIError as exc:
         logger.warning("Erreur API Google Sheets : %s", exc)
         raise SheetAPIError(f"Erreur de l'API Google Sheets : {exc}")
@@ -147,4 +197,30 @@ def get_all_rows(doc_name: str, sheet_name: Optional[str] = None) -> List[dict]:
         logger.warning("Google Sheets injoignable : %s", exc)
         raise SheetAPIError(f"Google Sheets est injoignable : {exc}")
 
-    return rows_from_values(values)
+
+def read_worksheet_values(spreadsheet, sheet_name: Optional[str] = None) -> List[List[Any]]:
+    """Grille brute d'un onglet (le premier si sheet_name est vide)."""
+    try:
+        worksheet = (
+            spreadsheet.worksheet(sheet_name) if sheet_name else spreadsheet.get_worksheet(0)
+        )
+        if worksheet is None:
+            raise SheetNotFound("Le document ne contient aucun onglet.")
+        return _read_values(worksheet)
+    except gspread.exceptions.WorksheetNotFound:
+        raise SheetNotFound(f"Onglet '{sheet_name}' introuvable.")
+    except gspread.exceptions.APIError as exc:
+        logger.warning("Erreur API Google Sheets : %s", exc)
+        raise SheetAPIError(f"Erreur de l'API Google Sheets : {exc}")
+    except RequestException as exc:
+        logger.warning("Google Sheets injoignable : %s", exc)
+        raise SheetAPIError(f"Google Sheets est injoignable : {exc}")
+
+
+def get_all_rows(
+    doc_name: str, sheet_name: Optional[str] = None, header_row: Optional[int] = None
+) -> List[dict]:
+    """Lit un onglet d'un Google Sheet (par défaut le premier) et renvoie ses lignes."""
+    spreadsheet = open_spreadsheet(doc_name)
+    values = read_worksheet_values(spreadsheet, sheet_name)
+    return rows_from_values(values, header_row)

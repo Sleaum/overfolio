@@ -3,6 +3,7 @@ import HeroSection from '../views/HeroSection.vue'
 import NewPage from '../views/NewPage.vue'
 import SheetPage from '../views/SheetPage.vue'
 import EchartPage from '../views/EchartPage.vue'
+import SourcePage from '../views/SourcePage.vue'
 import BoardPage from '../views/DashboardPage.vue'
 
 const routes = [
@@ -10,6 +11,7 @@ const routes = [
   { path: '/newpage', name: 'NewPage', component: NewPage },
   { path: '/sheet', name: 'SheetPage', component: SheetPage },
   { path: '/echart', name: 'EchartPage', component: EchartPage },
+  { path: '/source', name: 'SourcePage', component: SourcePage },
   { path: '/board', name: 'BoardPage', component: BoardPage },
 ]
 
@@ -19,4 +21,3 @@ const router = createRouter({
 })
 
 export default router
-

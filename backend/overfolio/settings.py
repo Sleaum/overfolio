@@ -20,7 +20,7 @@ if not SECRET_KEY:
 DEBUG = True
 
 USE_X_FORWARDED_HOST = True
-SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "htps")
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
 
 
@@ -89,16 +89,6 @@ DATABASES = {
         'PORT': os.environ.get('DB_PORT', '5432'),
     }
 }
-#DATABASES = {
-#    'default': {
-#        'ENGINE': 'django.db.backends.postgresql',
-#        'NAME': os.getenv('POSTGRES_DB', 'overfolio'),
-#        'USER': os.getenv('POSTGRES_USER', 'user'),
-#        'PASSWORD': os.getenv('POSTGRES_PASSWORD', 'pwd'),
-#        'HOST': 'db',  # très important ici : le nom du service Docker
-#        'PORT': '5432',
-#    }
-#}
 
 AUTH_PASSWORD_VALIDATORS = [
     {
